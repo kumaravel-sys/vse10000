@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>School Stock Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <style>
+    body { font-family: Arial, sans-serif; background:#111; color:#eee; margin:0; }
+    header { background:#222; padding:10px; text-align:center; font-size:20px; }
+    #loginSection, #stockSection, #adminSection { display:none; padding:20px; }
+    .stock { background:#1e1e1e; margin:10px; padding:10px; border-radius:8px; cursor:pointer; }
+    button { padding:8px 16px; margin:5px; border:none; border-radius:6px; background:#007bff; color:white; cursor:pointer; }
+    button:hover { background:#0056b3; }
+    #chartContainer { margin-top:20px; }
+  </style>
+</head>
+<body>
+  <header>📈 School Stock Market</header>
+
+  <!-- Login Section -->
+  <section id="loginSection">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email"><br><br>
+    <input type="password" id="password" placeholder="Password"><br><br>
+    <button onclick="login()">Login</button>
+  </section>
+
+  <!-- Stock Section -->
+  <section id="stockSection">
+    <h2>Available Shares</h2>
+    <div id="stocks"></div>
+    <div id="chartContainer"></div>
+    <button onclick="logout()">Logout</button>
+  </section>
+
+  <!-- Admin Section -->
+  <section id="adminSection">
+    <h2>Admin Panel</h2>
+    <p>Registered Users:</p>
+    <ul id="userList"></ul>
+    <button onclick="logout()">Logout</button>
+  </section>
+
+  <!-- TradingView Widget Script -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+
+  <script>
+    // ===== CONFIG =====
+    const SITE_PASSWORD = "vse2k25";
+    const ADMIN_EMAIL = "admin62vse.com";
+    const ADMIN_PASSWORD = "adminvse2k25";
+    const FINNHUB_KEY = "d3bm7n1r01qqg7bv706gd3bm7n1r01qqg7bv7070";
+
+    // Define 9 Indian shares with your custom department names
+    const SHARES = [
+      { symbol: "NSE:RELIANCE", name: "organising department" },
+      { symbol: "NSE:TCS", name: "models department" },
+      { symbol: "NSE:INFY", name: "tech department" },
+      { symbol: "NSE:HDFCBANK", name: "finance department" },
+      { symbol: "NSE:ICICIBANK", name: "games department" },
+      { symbol: "NSE:ITC", name: "foodstalls department" },
+      { symbol: "NSE:SBIN", name: "stalls department" },
+      { symbol: "NSE:BHARTIARTL", name: "seminar department" },
+      { symbol: "NSE:ASIANPAINT", name: "photography department" }
+    ];
+
+    let users = JSON.parse(localStorage.getItem("users") || "[]");
+    let currentUser = null;
+
+    // ====== SITE PASSWORD FIRST ======
+    window.onload = function() {
+      let pass = prompt("Enter site password:");
+      if (pass === SITE_PASSWORD) {
+        document.getElementById("loginSection").style.display = "block";
+      } else {
+        alert("Wrong password! Refresh and try again.");
+      }
+    };
+
+    // ===== LOGIN FUNCTION =====
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        currentUser = { email, admin:true };
+        showAdmin();
+        return;
+      }
+
+      let user = users.find(u => u.email === email && u.password === password);
+      if (!user) {
+        user = { email, password, portfolio: [] };
+        users.push(user);
+        localStorage.setItem("users", JSON.stringify(users));
+      }
+      currentUser = user;
+      showStocks();
+    }
+
+    // ===== SHOW STOCK LIST =====
+    async function showStocks() {
+      document.getElementById("loginSection").style.display = "none";
+      document.getElementById("adminSection").style.display = "none";
+      document.getElementById("stockSection").style.display = "block";
+
+      const stockDiv = document.getElementById("stocks");
+      stockDiv.innerHTML = "";
+
+      for (let s of SHARES) {
+        const price = await fetchStockPrice(s.symbol);
+        const div = document.createElement("div");
+        div.className = "stock";
+        div.innerHTML = `<b>${s.name}</b> (${s.symbol}) - ₹${price}`;
+        div.onclick = () => showChart(s.symbol);
+        stockDiv.appendChild(div);
+      }
+    }
+
+    // ===== FETCH PRICE FROM FINNHUB =====
+    async function fetchStockPrice(symbol) {
+      const finnhubSymbol = symbol.replace("NSE:", "") + ".NS";
+      try {
+        const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${finnhubSymbol}&token=${FINNHUB_KEY}`);
+        const data = await res.json();
+        return data.c || "N/A";
+      } catch (err) {
+        return "N/A";
+      }
+    }
+
+    // ===== SHOW CANDLESTICK CHART =====
+    function showChart(symbol) {
+      document.getElementById("chartContainer").innerHTML = "";
+      new TradingView.widget({
+        "width": "100%",
+        "height": 500,
+        "symbol": symbol,
+        "interval": "D",
+        "timezone": "Asia/Kolkata",
+        "theme": "dark",
+        "style": "1",
+        "locale": "en",
+        "toolbar_bg": "#111",
+        "enable_publishing": false,
+        "container_id": "chartContainer"
+      });
+    }
+
+    // ===== ADMIN PANEL =====
+    function showAdmin() {
+      document.getElementById("loginSection").style.display = "none";
+      document.getElementById("stockSection").style.display = "none";
+      document.getElementById("adminSection").style.display = "block";
+
+      const list = document.getElementById("userList");
+      list.innerHTML = "";
+      users.forEach(u => {
+        const li = document.createElement("li");
+        li.textContent = u.email;
+        list.appendChild(li);
+      });
+    }
+
+    // ===== LOGOUT =====
+    function logout() {
+      currentUser = null;
+      document.getElementById("loginSection").style.display = "block";
+      document.getElementById("stockSection").style.display = "none";
+      document.getElementById("adminSection").style.display = "none";
+    }
+  </script>
+</body>
+</html>
